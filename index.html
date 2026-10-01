@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LA Wildfire Predictive Intelligence</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  header {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; color: #f0f6fc; }
+  .logo-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, #ff4500, #ff8c00);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .header-meta { display: flex; align-items: center; gap: 16px; color: #8b949e; font-size: 13px; }
+  .live-badge {
+    background: #1a3a1a; color: #56d364; border: 1px solid #2ea04326;
+    padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #56d364; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .app { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 56px); }
+  .sidebar {
+    background: #161b22;
+    border-right: 1px solid #30363d;
+    padding: 20px 0;
+    overflow-y: auto;
+  }
+  .sidebar-section { margin-bottom: 24px; }
+  .sidebar-label {
+    font-size: 11px; font-weight: 600; color: #8b949e; letter-spacing: .08em;
+    text-transform: uppercase; padding: 0 20px 8px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px; cursor: pointer; color: #8b949e;
+    transition: background .15s, color .15s;
+    font-size: 13.5px;
+  }
+  .nav-item:hover { background: #21262d; color: #e6edf3; }
+  .nav-item.active { background: #1f2d42; color: #58a6ff; border-left: 3px solid #58a6ff; padding-left: 17px; }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+  .risk-overview { margin: 0 16px; background: #21262d; border-radius: 10px; padding: 14px; border: 1px solid #30363d; }
+  .risk-title { font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px; }
+  .risk-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-size: 12px; }
+  .risk-label { width: 80px; color: #8b949e; }
+  .risk-track { flex: 1; height: 6px; background: #30363d; border-radius: 3px; overflow: hidden; }
+  .risk-fill { height: 100%; border-radius: 3px; }
+  .risk-pct { width: 30px; text-align: right; color: #e6edf3; font-weight: 600; }
+  main { padding: 24px; overflow-y: auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+  h2 { font-size: 20px; font-weight: 700; color: #f0f6fc; margin-bottom: 4px; }
+  .page-sub { color: #8b949e; font-size: 13px; margin-bottom: 20px; }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .metric-card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+    padding: 16px; position: relative; overflow: hidden;
+  }
+  .metric-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .metric-card.danger::before { background: #f85149; }
+  .metric-card.warning::before { background: #e3b341; }
+  .metric-card.info::before { background: #58a6ff; }
+  .metric-card.ok::before { background: #56d364; }
+  .metric-label { font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 6px; }
+  .metric-val { font-size: 28px; font-weight: 700; color: #f0f6fc; line-height: 1.1; }
+  .metric-unit { font-size: 13px; color: #8b949e; margin-top: 2px; }
+  .metric-trend { font-size: 12px; margin-top: 6px; }
+  .trend-up { color: #f85149; } .trend-down { color: #56d364; } .trend-flat { color: #8b949e; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+  .grid-60-40 { display: grid; grid-template-columns: 60fr 40fr; gap: 18px; margin-bottom: 18px; }
+  .card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px;
+  }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .card-title { font-size: 14px; font-weight: 600; color: #f0f6fc; }
+  .card-badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600;
+  }
+  .badge-red { background: #3d1c1c; color: #f85149; border: 1px solid #f8514930; }
+  .badge-orange { background: #3d2a1a; color: #e3b341; border: 1px solid #e3b34130; }
+  .badge-blue { background: #1c2d3d; color: #58a6ff; border: 1px solid #58a6ff30; }
+  .badge-green { background: #1a3d1c; color: #56d364; border: 1px solid #56d36430; }
+  .map-area {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    height: 420px;
+    position: relative;
+    overflow: hidden;
+  }
+  .map-svg { width: 100%; height: 100%; }
+  .map-overlay {
+    position: absolute; top: 14px; left: 14px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .map-legend {
+    background: #161b22cc;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+  .legend-title { color: #8b949e; margin-bottom: 6px; font-weight: 600; }
+  .legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; color: #c9d1d9; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .map-controls {
+    position: absolute; top: 14px; right: 14px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .map-btn {
+    background: #161b22cc; border: 1px solid #30363d; color: #c9d1d9;
+    width: 32px; height: 32px; border-radius: 6px; font-size: 16px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .wind-arrow { animation: drift 3s ease-in-out infinite; }
+  @keyframes drift { 0%,100%{transform:translateX(0)} 50%{transform:translateX(4px)} }
+  .ember { animation: float 4s ease-in-out infinite; }
+  @keyframes float {
+    0%{transform:translate(0,0);opacity:0.9}
+    100%{transform:translate(80px,-60px);opacity:0}
+  }
+  .ember:nth-child(2){animation-delay:.8s;animation-duration:3.5s}
+  .ember:nth-child(3){animation-delay:1.6s;animation-duration:4.5s}
+  .ember:nth-child(4){animation-delay:2.4s;animation-duration:3.8s}
+  .zone-circle {
+    animation: expand 3s ease-out infinite;
+    transform-origin: center;
+  }
+  @keyframes expand {
+    0%{opacity:.8;transform:scale(1)} 100%{opacity:0;transform:scale(1.5)}
+  }
+  .timeline { margin-top: 8px; }
+  .tl-row {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 10px 0; border-bottom: 1px solid #21262d;
+    font-size: 13px;
+  }
+  .tl-row:last-child { border-bottom: none; }
+  .tl-time { color: #8b949e; min-width: 50px; padding-top: 1px; }
+  .tl-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .tl-content { flex: 1; }
+  .tl-evt { color: #e6edf3; font-weight: 500; margin-bottom: 2px; }
+  .tl-detail { color: #8b949e; font-size: 12px; }
+  .ign-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ign-table th {
+    text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600;
+    color: #8b949e; text-transform: uppercase; letter-spacing: .06em;
+    border-bottom: 1px solid #30363d;
+  }
+  .ign-table td { padding: 10px; border-bottom: 1px solid #21262d; color: #c9d1d9; }
+  .ign-table tr:last-child td { border-bottom: none; }
+  .ign-table tr:hover td { background: #1c2128; }
+  .prob-bar { height: 5px; background: #30363d; border-radius: 3px; margin-top: 4px; }
+  .prob-fill { height: 100%; border-radius: 3px; }
+  .aqi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .aqi-cell {
+    border-radius: 8px; padding: 12px; text-align: center;
+    border: 1px solid #30363d;
+  }
+  .aqi-zip { font-size: 11px; color: #8b949e; margin-bottom: 4px; }
+  .aqi-val { font-size: 22px; font-weight: 700; }
+  .aqi-cat { font-size: 11px; margin-top: 3px; }
+  .aqi-mod  { background: #3d3a1a; } .aqi-mod .aqi-val  { color: #e3b341; }
+  .aqi-usg  { background: #3d2a1a; } .aqi-usg .aqi-val  { color: #e3651a; }
+  .aqi-uh   { background: #3d1c1c; } .aqi-uh .aqi-val   { color: #f85149; }
+  .gauge-row { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; font-size: 13px; }
+  .gauge-area { font-weight: 600; color: #e6edf3; min-width: 130px; }
+  .gauge-track { flex: 1; height: 8px; background: #21262d; border-radius: 4px; overflow: hidden; }
+  .gauge-fill { height: 100%; border-radius: 4px; }
+  .gauge-pct { min-width: 38px; text-align: right; font-weight: 700; }
+  .util-list { margin-top: 4px; }
+  .util-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 0; border-bottom: 1px solid #21262d; font-size: 13px;
+  }
+  .util-item:last-child { border-bottom: none; }
+  .util-icon { font-size: 18px; width: 28px; text-align: center; }
+  .util-info { flex: 1; }
+  .util-name { color: #e6edf3; font-weight: 500; margin-bottom: 2px; }
+  .util-loc { color: #8b949e; font-size: 12px; }
+  .risk-pill {
+    padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .pill-critical { background: #3d1c1c; color: #f85149; }
+  .pill-high     { background: #3d2a1a; color: #e3b341; }
+  .pill-medium   { background: #1c2d3d; color: #58a6ff; }
+  .pill-low      { background: #1a3d1c; color: #56d364; }
+  .wind-rose-wrap { display: flex; justify-content: center; padding: 10px 0; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0d1117; }
+  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+  footer {
+    text-align: center; font-size: 12px; color: #57606a;
+    border-top: 1px solid #30363d; padding: 16px; margin-top: 32px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🔥</div>
+    LA Wildfire Predictive Intelligence
+  </div>
+  <div class="header-meta">
+    <span>Los Angeles County</span>
+    <span>·</span>
+    <span id="clock">--:--:-- PT</span>
+    <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+  </div>
+</header>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Predictive Tools</div>
+      <div class="nav-item active" onclick="showPage('ember',this)">
+        <span class="nav-icon">💨</span> Ember Cast Simulator
+      </div>
+      <div class="nav-item" onclick="showPage('risk',this)">
+        <span class="nav-icon">🗺️</span> Ignition Risk Map
+      </div>
+      <div class="nav-item" onclick="showPage('fuel',this)">
+        <span class="nav-icon">🌿</span> Fuel Load Monitor
+      </div>
+      <div class="nav-item" onclick="showPage('utility',this)">
+        <span class="nav-icon">⚡</span> Utility Infrastructure
+      </div>
+      <div class="nav-item" onclick="showPage('air',this)">
+        <span class="nav-icon">💨</span> Air Quality Corridors
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Current Risk Levels</div>
+      <div class="risk-overview">
+        <div class="risk-title">By Area</div>
+        <div class="risk-bar-row">
+          <div class="risk-label">Malibu</div>
+          <div class="risk-track"><div class="risk-fill" style="width:92%;background:#f85149"></div></div>
+          <div class="risk-pct">92%</div>
+        </div>
+        <div class="risk-bar-row">
+          <div class="risk-label">Topanga</div>
+          <div class="risk-track"><div class="risk-fill" style="width:87%;background:#f85149"></div></div>
+          <div class="risk-pct">87%</div>
+        </div>
+        <div class="risk-bar-row">
+          <div class="risk-label">Altadena</div>
+          <div class="risk-track"><div class="risk-fill" style="width:78%;background:#e3b341"></div></div>
+          <div class="risk-pct">78%</div>
+        </div>
+        <div class="risk-bar-row">
+          <div class="risk-label">Chatsworth</div>
+          <div class="risk-track"><div class="risk-fill" style="width:71%;background:#e3b341"></div></div>
+          <div class="risk-pct">71%</div>
+        </div>
+        <div class="risk-bar-row">
+          <div class="risk-label">Burbank</div>
+          <div class="risk-track"><div class="risk-fill" style="width:48%;background:#58a6ff"></div></div>
+          <div class="risk-pct">48%</div>
+        </div>
+        <div class="risk-bar-row">
+          <div class="risk-label">Pasadena</div>
+          <div class="risk-track"><div class="risk-fill" style="width:55%;background:#e3b341"></div></div>
+          <div class="risk-pct">55%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Active Alerts</div>
+      <div style="padding:0 16px">
+        <div style="background:#3d1c1c;border:1px solid #f8514930;border-radius:8px;padding:10px;margin-bottom:8px">
+          <div style="color:#f85149;font-size:12px;font-weight:700">🚨 RED FLAG WARNING</div>
+          <div style="color:#c9d1d9;font-size:12px;margin-top:3px">Santa Ana winds 45–65 mph · Humidity &lt;8% · Expires 6 AM Fri</div>
+        </div>
+        <div style="background:#3d2a1a;border:1px solid #e3b34130;border-radius:8px;padding:10px">
+          <div style="color:#e3b341;font-size:12px;font-weight:700">⚠️ WATCH: Ember Transport</div>
+          <div style="color:#c9d1d9;font-size:12px;margin-top:3px">High spotting risk N–S corridors · Topanga to Santa Monica</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+
+    <!-- EMBER CAST SIMULATOR -->
+    <div id="page-ember" class="page active">
+      <h2>💨 Ember Cast Simulator</h2>
+      <p class="page-sub">Simulates where airborne embers travel under current Santa Ana wind conditions — predicting secondary ignition zones before they occur.</p>
+
+      <div class="metrics">
+        <div class="metric-card danger">
+          <div class="metric-label">Wind Speed</div>
+          <div class="metric-val">58</div>
+          <div class="metric-unit">mph · NE sustained</div>
+          <div class="metric-trend trend-up">↑ Gusts to 74 mph</div>
+        </div>
+        <div class="metric-card danger">
+          <div class="metric-label">Ember Travel Dist.</div>
+          <div class="metric-val">1.8</div>
+          <div class="metric-unit">miles max projection</div>
+          <div class="metric-trend trend-up">↑ Extreme fire weather</div>
+        </div>
+        <div class="metric-card warning">
+          <div class="metric-label">Relative Humidity</div>
+          <div class="metric-val">6</div>
+          <div class="metric-unit">% — critically dry</div>
+          <div class="metric-trend trend-down">↓ Below 10% threshold</div>
+        </div>
+        <div class="metric-card warning">
+          <div class="metric-label">Spot Fire Prob.</div>
+          <div class="metric-val">84</div>
+          <div class="metric-unit">% likelihood index</div>
+          <div class="metric-trend trend-up">↑ Very High</div>
+        </div>
+      </div>
+
+      <div class="grid-60-40">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Ember Dispersion Map — Topanga Canyon Source</span>
+            <span class="card-badge badge-red">Live Simulation</span>
+          </div>
+          <div class="map-area">
+            <svg class="map-svg" viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="rg1" cx="30%" cy="40%"><stop offset="0%" stop-color="#ff450022"/><stop offset="60%" stop-color="#ff450008"/><stop offset="100%" stop-color="transparent"/></radialGradient>
+                <radialGradient id="rg2" cx="50%" cy="55%"><stop offset="0%" stop-color="#ff8c0015"/><stop offset="100%" stop-color="transparent"/></radialGradient>
+                <radialGradient id="rg3" cx="65%" cy="60%"><stop offset="0%" stop-color="#ff450018"/><stop offset="100%" stop-color="transparent"/></radialGradient>
+                <marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#58a6ff"/></marker>
+                <marker id="warrow" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z" fill="#58a6ff"/></marker>
+              </defs>
+              <rect width="700" height="400" fill="#111820"/>
+              <path d="M0,180 Q80,140 160,160 Q240,180 320,150 Q400,120 480,145 Q560,165 700,140" stroke="#1e2d3d" stroke-width="1" fill="none"/>
+              <path d="M0,220 Q100,195 200,210 Q300,225 400,195 Q500,165 700,185" stroke="#1a2535" stroke-width="1" fill="none"/>
+              <path d="M0,200 Q200,190 400,200 Q550,210 700,195" stroke="#2a3540" stroke-width="2" fill="none"/>
+              <path d="M350,0 Q360,100 355,200 Q350,300 360,400" stroke="#2a3540" stroke-width="1.5" fill="none"/>
+              <path d="M0,280 Q150,270 300,280 Q450,290 700,275" stroke="#2a3540" stroke-width="1.5" fill="none"/>
+              <ellipse cx="350" cy="240" rx="190" ry="100" fill="#ff450012"/>
+              <ellipse cx="390" cy="260" rx="130" ry="70" fill="#ff450018"/>
+              <ellipse cx="420" cy="270" rx="75" ry="45" fill="#ff450028"/>
+              <ellipse cx="210" cy="160" rx="120" ry="80" fill="url(#rg1)"/>
+              <ellipse cx="350" cy="220" rx="140" ry="80" fill="url(#rg2)"/>
+              <ellipse cx="455" cy="240" rx="100" ry="70" fill="url(#rg3)"/>
+              <circle cx="210" cy="160" r="14" fill="#ff4500" opacity="0.9"/>
+              <circle cx="210" cy="160" r="14" fill="#ff4500" opacity="0.3" class="zone-circle"/>
+              <circle cx="210" cy="160" r="7" fill="#fff" opacity="0.95"/>
+              <text x="225" y="148" font-size="11" fill="#ff8c00" font-family="system-ui" font-weight="600">TOPANGA ORIGIN</text>
+              <g class="wind-arrow">
+                <line x1="100" y1="60" x2="220" y2="130" stroke="#58a6ff" stroke-width="2.5" marker-end="url(#arrow)"/>
+                <text x="60" y="58" font-size="11" fill="#58a6ff" font-family="system-ui">NE 58 mph</text>
+              </g>
+              <circle cx="220" cy="155" r="3" fill="#ff8c00" class="ember"/>
+              <circle cx="215" cy="162" r="2.5" fill="#ffcc00" class="ember"/>
+              <circle cx="225" cy="158" r="2" fill="#ff4500" class="ember"/>
+              <circle cx="218" cy="150" r="3.5" fill="#ff8c00" class="ember"/>
+              <circle cx="222" cy="165" r="2" fill="#ffd700" class="ember"/>
+              <circle cx="360" cy="240" r="8" fill="#e3b341" opacity="0.85"/>
+              <text x="372" y="244" font-size="10" fill="#e3b341" font-family="system-ui">High Spot Risk</text>
+              <circle cx="430" cy="268" r="8" fill="#f85149" opacity="0.9"/>
+              <text x="442" y="272" font-size="10" fill="#f85149" font-family="system-ui">Critical Zone</text>
+              <circle cx="290" cy="270" r="7" fill="#e3b341" opacity="0.8"/>
+              <text x="301" y="274" font-size="10" fill="#e3b341" font-family="system-ui">Mod. Risk</text>
+              <line x1="560" y1="375" x2="640" y2="375" stroke="#8b949e" stroke-width="1.5"/>
+              <line x1="560" y1="371" x2="560" y2="379" stroke="#8b949e" stroke-width="1.5"/>
+              <line x1="640" y1="371" x2="640" y2="379" stroke="#8b949e" stroke-width="1.5"/>
+              <text x="580" y="367" font-size="10" fill="#8b949e" font-family="system-ui">1 mile</text>
+              <text x="652" y="32" font-size="12" fill="#8b949e" font-family="system-ui" font-weight="700">N</text>
+              <line x1="660" y1="36" x2="660" y2="52" stroke="#8b949e" stroke-width="1.5"/>
+              <polygon points="660,36 655,52 660,48 665,52" fill="#8b949e"/>
+            </svg>
+            <div class="map-overlay">
+              <div class="map-legend">
+                <div class="legend-title">Ember Probability</div>
+                <div class="legend-row"><div class="legend-dot" style="background:#f85149"></div> Critical (&gt;70%)</div>
+                <div class="legend-row"><div class="legend-dot" style="background:#e3b341"></div> High (40–70%)</div>
+                <div class="legend-row"><div class="legend-dot" style="background:#58a6ff"></div> Moderate (20–40%)</div>
+              </div>
+            </div>
+            <div class="map-controls">
+              <div class="map-btn">+</div>
+              <div class="map-btn">−</div>
+              <div class="map-btn">⊙</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Projected Ignition Events</span>
+              <span class="card-badge badge-red">Next 6h</span>
+            </div>
+            <div class="timeline">
+              <div class="tl-row"><div class="tl-time">+45m</div><div class="tl-dot" style="background:#f85149"></div><div class="tl-content"><div class="tl-evt">Santa Monica Canyon</div><div class="tl-detail">84% spot ignition probability · Dense chaparral</div></div></div>
+              <div class="tl-row"><div class="tl-time">+1.5h</div><div class="tl-dot" style="background:#f85149"></div><div class="tl-content"><div class="tl-evt">Malibu Creek State Park</div><div class="tl-detail">76% probability · Active ember showers</div></div></div>
+              <div class="tl-row"><div class="tl-time">+2h</div><div class="tl-dot" style="background:#e3b341"></div><div class="tl-content"><div class="tl-evt">Encino Hills</div><div class="tl-detail">62% probability · Dry grass exposure</div></div></div>
+              <div class="tl-row"><div class="tl-time">+3h</div><div class="tl-dot" style="background:#e3b341"></div><div class="tl-content"><div class="tl-evt">Sepulveda Pass</div><div class="tl-detail">55% probability · Wind tunnel effect</div></div></div>
+              <div class="tl-row"><div class="tl-time">+5h</div><div class="tl-dot" style="background:#58a6ff"></div><div class="tl-content"><div class="tl-evt">Brentwood Perimeter</div><div class="tl-detail">38% probability · Wind weakening</div></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Wind Vectors</span><span class="card-badge badge-blue">Live</span></div>
+            <div class="wind-rose-wrap">
+              <svg width="160" height="160" viewBox="0 0 160 160">
+                <circle cx="80" cy="80" r="70" fill="#21262d" stroke="#30363d" stroke-width="1"/>
+                <circle cx="80" cy="80" r="50" fill="none" stroke="#30363d" stroke-width="1" stroke-dasharray="4,4"/>
+                <circle cx="80" cy="80" r="30" fill="none" stroke="#30363d" stroke-width="1" stroke-dasharray="4,4"/>
+                <line x1="80" y1="10" x2="80" y2="150" stroke="#30363d" stroke-width="1"/>
+                <line x1="10" y1="80" x2="150" y2="80" stroke="#30363d" stroke-width="1"/>
+                <text x="76" y="22" font-size="11" fill="#8b949e" font-family="system-ui">N</text>
+                <text x="76" y="152" font-size="11" fill="#8b949e" font-family="system-ui">S</text>
+                <text x="14" y="84" font-size="11" fill="#8b949e" font-family="system-ui">W</text>
+                <text x="143" y="84" font-size="11" fill="#8b949e" font-family="system-ui">E</text>
+                <polygon points="80,80 48,35 56,58" fill="#58a6ff" opacity="0.7"/>
+                <polygon points="80,80 58,38 72,62" fill="#58a6ff" opacity="0.9"/>
+                <line x1="80" y1="80" x2="48" y2="42" stroke="#58a6ff" stroke-width="3" marker-end="url(#warrow)"/>
+                <text x="65" y="93" font-size="12" font-weight="700" fill="#58a6ff" font-family="system-ui">58 mph</text>
+                <text x="70" y="106" font-size="10" fill="#8b949e" font-family="system-ui">NE → SW</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IGNITION RISK MAP -->
+    <div id="page-risk" class="page">
+      <h2>🗺️ Real-Time Ignition Risk Map</h2>
+      <p class="page-sub">Live ignition risk score per neighborhood based on wind, humidity, temperature, vegetation dryness, and historical fire density.</p>
+      <div class="metrics">
+        <div class="metric-card danger"><div class="metric-label">Highest Risk Zone</div><div class="metric-val" style="font-size:18px">Malibu</div><div class="metric-unit">Risk index: 92/100</div><div class="metric-trend trend-up">↑ Increased since 6 AM</div></div>
+        <div class="metric-card warning"><div class="metric-label">Zones at Critical</div><div class="metric-val">5</div><div class="metric-unit">of 88 zones tracked</div><div class="metric-trend trend-up">↑ +2 since yesterday</div></div>
+        <div class="metric-card info"><div class="metric-label">Temperature</div><div class="metric-val">97°F</div><div class="metric-unit">Forecast high today</div><div class="metric-trend trend-flat">→ Seasonally extreme</div></div>
+        <div class="metric-card ok"><div class="metric-label">Model Accuracy</div><div class="metric-val">91</div><div class="metric-unit">% 48-hr backtested</div><div class="metric-trend trend-flat">→ NASA FIRMS + NOAA</div></div>
+      </div>
+      <div class="grid-60-40">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Neighborhood Risk Heatmap — LA County</span><span class="card-badge badge-orange">Updated 14m ago</span></div>
+          <div class="map-area">
+            <svg class="map-svg" viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg">
+              <rect width="700" height="400" fill="#111820"/>
+              <path d="M0,90 Q100,70 200,85 Q350,100 500,75 Q600,60 700,80" stroke="#1a2535" fill="none" stroke-width="1"/>
+              <path d="M0,150 Q80,130 200,145 Q350,160 450,140 Q550,120 700,138" stroke="#1a2535" fill="none" stroke-width="1"/>
+              <ellipse cx="150" cy="130" rx="90" ry="65" fill="#f8514940" stroke="#f85149" stroke-width="1.5"/>
+              <ellipse cx="280" cy="110" rx="70" ry="50" fill="#f8514935" stroke="#f85149" stroke-width="1"/>
+              <ellipse cx="430" cy="140" rx="85" ry="55" fill="#e3b34130" stroke="#e3b341" stroke-width="1"/>
+              <ellipse cx="540" cy="180" rx="65" ry="50" fill="#e3b34128" stroke="#e3b341" stroke-width="1"/>
+              <ellipse cx="350" cy="240" rx="120" ry="70" fill="#58a6ff18" stroke="#58a6ff" stroke-width="1"/>
+              <ellipse cx="200" cy="280" rx="100" ry="60" fill="#58a6ff15" stroke="#58a6ff" stroke-width="0.8"/>
+              <ellipse cx="550" cy="300" rx="100" ry="65" fill="#56d36410" stroke="#56d364" stroke-width="0.8"/>
+              <text x="115" y="128" font-size="11" fill="#f85149" font-family="system-ui" font-weight="700">Malibu 92%</text>
+              <text x="247" y="108" font-size="11" fill="#f85149" font-family="system-ui" font-weight="700">Topanga 87%</text>
+              <text x="398" y="137" font-size="11" fill="#e3b341" font-family="system-ui" font-weight="600">Altadena 78%</text>
+              <text x="505" y="178" font-size="11" fill="#e3b341" font-family="system-ui" font-weight="600">Chatsworth 71%</text>
+              <text x="298" y="242" font-size="11" fill="#58a6ff" font-family="system-ui">Pasadena 55%</text>
+              <text x="155" y="278" font-size="11" fill="#58a6ff" font-family="system-ui">Encino 48%</text>
+              <text x="505" y="298" font-size="11" fill="#56d364" font-family="system-ui">Downtown 22%</text>
+              <circle cx="150" cy="128" r="8" fill="#f85149" opacity="0.9"/>
+              <circle cx="150" cy="128" r="8" fill="#f85149" opacity="0.3" class="zone-circle"/>
+              <circle cx="280" cy="108" r="7" fill="#f85149" opacity="0.85"/>
+              <rect x="540" y="340" width="150" height="55" rx="6" fill="#161b22" stroke="#30363d"/>
+              <text x="548" y="354" font-size="10" fill="#8b949e" font-family="system-ui">IGNITION RISK INDEX</text>
+              <rect x="548" y="360" width="12" height="8" rx="2" fill="#f85149" opacity="0.7"/>
+              <text x="564" y="368" font-size="10" fill="#c9d1d9" font-family="system-ui">Critical (75–100)</text>
+              <rect x="548" y="371" width="12" height="8" rx="2" fill="#e3b341" opacity="0.7"/>
+              <text x="564" y="379" font-size="10" fill="#c9d1d9" font-family="system-ui">High (50–74)</text>
+              <rect x="548" y="382" width="12" height="8" rx="2" fill="#58a6ff" opacity="0.5"/>
+              <text x="564" y="390" font-size="10" fill="#c9d1d9" font-family="system-ui">Moderate (25–49)</text>
+            </svg>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Ignition Sources by Type</span><span class="card-badge badge-orange">Last 30 days</span></div>
+          <table class="ign-table">
+            <thead><tr><th>Source</th><th>Count</th><th>Probability</th></tr></thead>
+            <tbody>
+              <tr><td>Power Lines</td><td>34</td><td><div class="prob-bar"><div class="prob-fill" style="width:78%;background:#f85149"></div></div>78%</td></tr>
+              <tr><td>Lightning</td><td>22</td><td><div class="prob-bar"><div class="prob-fill" style="width:62%;background:#e3b341"></div></div>62%</td></tr>
+              <tr><td>Vehicle Sparks</td><td>18</td><td><div class="prob-bar"><div class="prob-fill" style="width:52%;background:#e3b341"></div></div>52%</td></tr>
+              <tr><td>Arson / Human</td><td>14</td><td><div class="prob-bar"><div class="prob-fill" style="width:41%;background:#58a6ff"></div></div>41%</td></tr>
+              <tr><td>Equipment</td><td>9</td><td><div class="prob-bar"><div class="prob-fill" style="width:28%;background:#58a6ff"></div></div>28%</td></tr>
+              <tr><td>Debris Burn</td><td>6</td><td><div class="prob-bar"><div class="prob-fill" style="width:18%;background:#56d364"></div></div>18%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- FUEL LOAD -->
+    <div id="page-fuel" class="page">
+      <h2>🌿 Vegetation &amp; Fuel Load Monitor</h2>
+      <p class="page-sub">Satellite-derived NDVI data showing where dry brush has accumulated — highlighting areas overdue for prescribed burns or clearance.</p>
+      <div class="metrics">
+        <div class="metric-card danger"><div class="metric-label">Critical Fuel Zones</div><div class="metric-val">14</div><div class="metric-unit">areas &gt;90% load index</div><div class="metric-trend trend-up">↑ 3 new since last scan</div></div>
+        <div class="metric-card warning"><div class="metric-label">Avg NDVI Delta</div><div class="metric-val">−0.31</div><div class="metric-unit">vs prior 30-day avg</div><div class="metric-trend trend-down">↓ Rapid drying trend</div></div>
+        <div class="metric-card info"><div class="metric-label">Overdue Burns</div><div class="metric-val">8</div><div class="metric-unit">planned, weather-blocked</div><div class="metric-trend trend-flat">→ 14,800 acres pending</div></div>
+        <div class="metric-card ok"><div class="metric-label">Last Satellite Pass</div><div class="metric-val" style="font-size:20px">2h ago</div><div class="metric-unit">Landsat-9 / MODIS</div><div class="metric-trend trend-flat">→ Next pass in 4.5h</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Fuel Load by Corridor</span><span class="card-badge badge-red">Critical Areas First</span></div>
+          <div class="gauge-row"><div class="gauge-area">Topanga Canyon</div><div class="gauge-track"><div class="gauge-fill" style="width:97%;background:#f85149"></div></div><div class="gauge-pct" style="color:#f85149">97%</div></div>
+          <div class="gauge-row"><div class="gauge-area">Malibu Hills</div><div class="gauge-track"><div class="gauge-fill" style="width:92%;background:#f85149"></div></div><div class="gauge-pct" style="color:#f85149">92%</div></div>
+          <div class="gauge-row"><div class="gauge-area">Verdugo Mtns</div><div class="gauge-track"><div class="gauge-fill" style="width:85%;background:#e3b341"></div></div><div class="gauge-pct" style="color:#e3b341">85%</div></div>
+          <div class="gauge-row"><div class="gauge-area">San Gabriel Foothills</div><div class="gauge-track"><div class="gauge-fill" style="width:81%;background:#e3b341"></div></div><div class="gauge-pct" style="color:#e3b341">81%</div></div>
+          <div class="gauge-row"><div class="gauge-area">Santa Susana Pass</div><div class="gauge-track"><div class="gauge-fill" style="width:74%;background:#e3b341"></div></div><div class="gauge-pct" style="color:#e3b341">74%</div></div>
+          <div class="gauge-row"><div class="gauge-area">Griffith Park</div><div class="gauge-track"><div class="gauge-fill" style="width:62%;background:#58a6ff"></div></div><div class="gauge-pct" style="color:#58a6ff">62%</div></div>
+          <div class="gauge-row"><div class="gauge-area">Kenneth Hahn SP</div><div class="gauge-track"><div class="gauge-fill" style="width:44%;background:#56d364"></div></div><div class="gauge-pct" style="color:#56d364">44%</div></div>
+          <div class="gauge-row"><div class="gauge-area">Elysian Park</div><div class="gauge-track"><div class="gauge-fill" style="width:31%;background:#56d364"></div></div><div class="gauge-pct" style="color:#56d364">31%</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Prescribed Burn Schedule</span><span class="card-badge badge-blue">Cal Fire + USFS</span></div>
+          <div class="timeline">
+            <div class="tl-row"><div class="tl-time">BLOCKED</div><div class="tl-dot" style="background:#f85149"></div><div class="tl-content"><div class="tl-evt">Topanga State Park — 1,200 ac</div><div class="tl-detail">Red flag conditions · Rescheduled 4× this season</div></div></div>
+            <div class="tl-row"><div class="tl-time">BLOCKED</div><div class="tl-dot" style="background:#f85149"></div><div class="tl-content"><div class="tl-evt">Malibu Creek — 800 ac</div><div class="tl-detail">Wind too high · Awaiting weather window</div></div></div>
+            <div class="tl-row"><div class="tl-time">Jan 18</div><div class="tl-dot" style="background:#e3b341"></div><div class="tl-content"><div class="tl-evt">Verdugo Hills — 550 ac</div><div class="tl-detail">Tentative · Needs 3-day calm window</div></div></div>
+            <div class="tl-row"><div class="tl-time">Jan 22</div><div class="tl-dot" style="background:#58a6ff"></div><div class="tl-content"><div class="tl-evt">Elysian Park — 180 ac</div><div class="tl-detail">Conditions permitting · LAFD coordinating</div></div></div>
+            <div class="tl-row"><div class="tl-time">Feb 4</div><div class="tl-dot" style="background:#56d364"></div><div class="tl-content"><div class="tl-evt">Santa Susana — 2,100 ac</div><div class="tl-detail">Planned · Seasonal window open mid-Feb</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UTILITY INFRASTRUCTURE -->
+    <div id="page-utility" class="page">
+      <h2>⚡ Utility Infrastructure Risk</h2>
+      <p class="page-sub">Power line corridors, transformer locations, and high-voltage equipment near high fire-risk terrain — highlighting potential ignition sources proactively.</p>
+      <div class="metrics">
+        <div class="metric-card danger"><div class="metric-label">Critical Assets</div><div class="metric-val">12</div><div class="metric-unit">in extreme risk zones</div><div class="metric-trend trend-up">↑ 4 added with wind gust</div></div>
+        <div class="metric-card danger"><div class="metric-label">PSPS Candidates</div><div class="metric-val">3</div><div class="metric-unit">circuits under review</div><div class="metric-trend trend-up">↑ Decision by 6 PM</div></div>
+        <div class="metric-card warning"><div class="metric-label">Vegetation Contact</div><div class="metric-val">47</div><div class="metric-unit">flagged conductor spans</div><div class="metric-trend trend-flat">→ Clearance violations</div></div>
+        <div class="metric-card info"><div class="metric-label">Last Inspection</div><div class="metric-val" style="font-size:20px">8 days</div><div class="metric-unit">highest-risk corridors</div><div class="metric-trend trend-flat">→ 14-day cycle mandated</div></div>
+      </div>
+      <div class="grid-60-40">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Infrastructure Risk — High Priority Assets</span><span class="card-badge badge-red">SCE + LADWP Data</span></div>
+          <div class="util-list">
+            <div class="util-item"><div class="util-icon">⚡</div><div class="util-info"><div class="util-name">Malibu 66kV Transmission Line — Segment 7</div><div class="util-loc">PCH Corridor · 2.1 mi · 14 vegetation contacts flagged</div></div><div class="risk-pill pill-critical">CRITICAL</div></div>
+            <div class="util-item"><div class="util-icon">🔌</div><div class="util-info"><div class="util-name">Topanga Substation — Transformer 3A</div><div class="util-loc">Topanga Canyon Blvd · Overheating sensor active</div></div><div class="risk-pill pill-critical">CRITICAL</div></div>
+            <div class="util-item"><div class="util-icon">⚡</div><div class="util-info"><div class="util-name">Altadena 33kV Distribution — Circuit 4</div><div class="util-loc">Lake Ave Corridor · PSPS under consideration</div></div><div class="risk-pill pill-high">HIGH</div></div>
+            <div class="util-item"><div class="util-icon">🔋</div><div class="util-info"><div class="util-name">Chatsworth Bulk Storage — Pad C</div><div class="util-loc">Lassen St · High-voltage · Adjacent to chaparral</div></div><div class="risk-pill pill-high">HIGH</div></div>
+            <div class="util-item"><div class="util-icon">⚡</div><div class="util-info"><div class="util-name">Sepulveda Pass 115kV — Towers 22–31</div><div class="util-loc">I-405 Corridor · Conductor galloping at 55+ mph</div></div><div class="risk-pill pill-high">HIGH</div></div>
+            <div class="util-item"><div class="util-icon">🔌</div><div class="util-info"><div class="util-name">Burbank Interconnect — Feeder 12B</div><div class="util-loc">Victory Blvd · Last inspected 8d ago</div></div><div class="risk-pill pill-medium">MEDIUM</div></div>
+            <div class="util-item"><div class="util-icon">⚡</div><div class="util-info"><div class="util-name">LAX Grid Perimeter — SW Loop</div><div class="util-loc">Century Blvd · Low vegetation, barrier protected</div></div><div class="risk-pill pill-low">LOW</div></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="card">
+            <div class="card-header"><span class="card-title">PSPS Decision Tracker</span><span class="card-badge badge-red">Pending</span></div>
+            <div style="font-size:13px;color:#8b949e;margin-bottom:10px">Public Safety Power Shutoff — active evaluation</div>
+            <div style="background:#21262d;border-radius:8px;padding:12px;margin-bottom:8px"><div style="color:#f85149;font-weight:600;font-size:13px">Circuit 4 · Altadena</div><div style="color:#c9d1d9;font-size:12px;margin:4px 0">~2,400 customers · Decision 6 PM today</div><div style="color:#8b949e;font-size:11px">Wind forecast must drop below 35 mph to avoid shutoff</div></div>
+            <div style="background:#21262d;border-radius:8px;padding:12px;margin-bottom:8px"><div style="color:#f85149;font-weight:600;font-size:13px">Segment 7 · Malibu PCH</div><div style="color:#c9d1d9;font-size:12px;margin:4px 0">~880 customers · Already de-energized</div><div style="color:#56d364;font-size:11px">✓ Shutoff enacted 4:30 AM today</div></div>
+            <div style="background:#21262d;border-radius:8px;padding:12px"><div style="color:#e3b341;font-weight:600;font-size:13px">Sepulveda Pass 115kV</div><div style="color:#c9d1d9;font-size:12px;margin:4px 0">Transmission only · No direct customers</div><div style="color:#8b949e;font-size:11px">Monitoring conductor sag and galloping sensors</div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Risk Distribution</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div style="background:#3d1c1c;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#8b949e">CRITICAL</div><div style="font-size:20px;font-weight:700;color:#f85149">2</div><div style="font-size:10px;color:#c9d1d9">Assets</div></div>
+              <div style="background:#3d2a1a;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#8b949e">HIGH</div><div style="font-size:20px;font-weight:700;color:#e3b341">10</div><div style="font-size:10px;color:#c9d1d9">Assets</div></div>
+              <div style="background:#1c2d3d;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#8b949e">MEDIUM</div><div style="font-size:20px;font-weight:700;color:#58a6ff">24</div><div style="font-size:10px;color:#c9d1d9">Assets</div></div>
+              <div style="background:#1a3d1c;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#8b949e">LOW</div><div style="font-size:20px;font-weight:700;color:#56d364">118</div><div style="font-size:10px;color:#c9d1d9">Assets</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AIR QUALITY -->
+    <div id="page-air" class="page">
+      <h2>💨 Air Quality Corridor Map</h2>
+      <p class="page-sub">Smoke plume modeling and real-time AQI by zip code, with activity recommendations and threshold alerts.</p>
+      <div class="metrics">
+        <div class="metric-card danger"><div class="metric-label">Worst AQI (Now)</div><div class="metric-val">312</div><div class="metric-unit">Malibu 90265 — Hazardous</div><div class="metric-trend trend-up">↑ +88 in 2 hours</div></div>
+        <div class="metric-card warning"><div class="metric-label">Unhealthy Zip Codes</div><div class="metric-val">19</div><div class="metric-unit">AQI &gt; 150 — Unhealthy</div><div class="metric-trend trend-up">↑ Up from 11 at dawn</div></div>
+        <div class="metric-card info"><div class="metric-label">Schools Closed</div><div class="metric-val">34</div><div class="metric-unit">LAUSD + charter sites</div><div class="metric-trend trend-flat">→ AQI trigger &gt; 150</div></div>
+        <div class="metric-card ok"><div class="metric-label">Plume Direction</div><div class="metric-val" style="font-size:20px">SW</div><div class="metric-unit">Santa Monica / Venice</div><div class="metric-trend trend-flat">→ NOAA HYSPLIT model</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">AQI by Zone — Real-Time</span><span class="card-badge badge-blue">SCAQMD Sensors</span></div>
+          <div class="aqi-grid">
+            <div class="aqi-cell aqi-uh"><div class="aqi-zip">90265 · Malibu</div><div class="aqi-val">312</div><div class="aqi-cat" style="color:#c9d1d9">Hazardous</div></div>
+            <div class="aqi-cell aqi-uh"><div class="aqi-zip">91302 · Calabasas</div><div class="aqi-val">278</div><div class="aqi-cat" style="color:#c9d1d9">Hazardous</div></div>
+            <div class="aqi-cell aqi-uh"><div class="aqi-zip">91307 · West Hills</div><div class="aqi-val">241</div><div class="aqi-cat" style="color:#c9d1d9">Very Unhealthy</div></div>
+            <div class="aqi-cell aqi-usg"><div class="aqi-zip">91301 · Agoura</div><div class="aqi-val">198</div><div class="aqi-cat" style="color:#c9d1d9">Very Unhealthy</div></div>
+            <div class="aqi-cell aqi-usg"><div class="aqi-zip">91011 · La Cañada</div><div class="aqi-val">172</div><div class="aqi-cat" style="color:#c9d1d9">Unhealthy</div></div>
+            <div class="aqi-cell aqi-mod"><div class="aqi-zip">90049 · Brentwood</div><div class="aqi-val">148</div><div class="aqi-cat" style="color:#c9d1d9">Unhealthy</div></div>
+            <div class="aqi-cell aqi-mod"><div class="aqi-zip">91001 · Altadena</div><div class="aqi-val">133</div><div class="aqi-cat" style="color:#c9d1d9">USG</div></div>
+            <div class="aqi-cell aqi-mod"><div class="aqi-zip">90210 · Beverly Hills</div><div class="aqi-val">112</div><div class="aqi-cat" style="color:#c9d1d9">Unhealthy</div></div>
+            <div class="aqi-cell" style="background:#2a2a1a;border:1px solid #30363d"><div class="aqi-zip">90012 · Downtown LA</div><div class="aqi-val" style="color:#c9aa50">88</div><div class="aqi-cat" style="color:#c9d1d9">Moderate</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Activity Recommendations</span><span class="card-badge badge-red">Based on Live AQI</span></div>
+          <div class="timeline">
+            <div class="tl-row"><div class="tl-dot" style="background:#f85149;margin-top:2px"></div><div class="tl-content"><div class="tl-evt">AQI &gt; 200 — ALL outdoor activity prohibited</div><div class="tl-detail">Wear N95+ if outside for any reason · Keep windows fully sealed</div></div></div>
+            <div class="tl-row"><div class="tl-dot" style="background:#f85149;margin-top:2px"></div><div class="tl-content"><div class="tl-evt">34 LAUSD schools closed today</div><div class="tl-detail">90265, 91302, 91307, 91301 zones · Remote learning activated</div></div></div>
+            <div class="tl-row"><div class="tl-dot" style="background:#e3b341;margin-top:2px"></div><div class="tl-content"><div class="tl-evt">AQI 150–200 — Sensitive groups indoors</div><div class="tl-detail">Children, elderly, asthma patients avoid all outdoor exposure</div></div></div>
+            <div class="tl-row"><div class="tl-dot" style="background:#58a6ff;margin-top:2px"></div><div class="tl-content"><div class="tl-evt">Plume tracking: SW movement</div><div class="tl-detail">Santa Monica, Venice may hit AQI 150 by 4 PM · Pre-position alerts</div></div></div>
+            <div class="tl-row"><div class="tl-dot" style="background:#56d364;margin-top:2px"></div><div class="tl-content"><div class="tl-evt">Downtown LA — Moderate, improving</div><div class="tl-detail">Sea breeze pushing smoke NE overnight · Expected improvement by 9 PM</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>Made with IBM Bob</footer>
+  </main>
+</div>
+
+<script>
+  function tick() {
+    var now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' PT';
+  }
+  tick();
+  setInterval(tick, 1000);
+
+  function showPage(name, el) {
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+    document.getElementById('page-' + name).classList.add('active');
+    el.classList.add('active');
+  }
+</script>
+</body>
+</html>
