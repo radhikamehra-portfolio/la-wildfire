@@ -6,7 +6,7 @@ A fully interactive, self-contained web dashboard that takes a **predictive and 
 
 Built with plain HTML, CSS, and SVG — no frameworks, no installs, no API keys required. Open the file in any browser and it works instantly.
 
-**[▶ View Live Dashboard](https://YOUR-USERNAME.github.io/la-wildfire-dashboard)**
+**[▶ View Live Dashboard](https://radhikamehra-portfolio.github.io/la-wildfire/)**
 
 ---
 
